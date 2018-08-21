@@ -1,8 +1,10 @@
 import os
 import uuid
+import jwt
+import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 
 app=Flask(__name__)
 
@@ -92,7 +94,28 @@ def delete_user(public_id):
 	db.session.delete(user)
 	db.session.commit()		
 	
-	return jsonify({'message' : 'user deleted'})				
+	return jsonify({'message' : 'user deleted'})
+
+@app.route('/login')
+def login():
+	
+	auth = request.authorization
+	if not auth or not auth.username or not auth.password:
+		return make_response('could nor verify 1st', 401, {'www-Authenicate' : 'Login required'})
+
+	user = User.query.filter_by(name=auth.username).first()
+
+	if not user:
+		return make_response('could nor verify 2nd', 401, {'www-Authenicate' : 'Login required'})
+
+	if check_password_hash(user.password, auth.password):
+		token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY']) 
+		
+		return jsonify({'token' : token.decode('UTF-8')})
+
+	return make_response('could nor verify 3rd', 401, {'www-Authenicate' : 'Login required'})
+
+				
 
 if __name__ == '__main__':
     app.run(debug=True)
